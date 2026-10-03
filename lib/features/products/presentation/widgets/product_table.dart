@@ -63,61 +63,62 @@ class ProductTable extends StatelessWidget {
             const DataColumn(label: Text('Updated')),
             if (_showActions) const DataColumn(label: Text('')),
           ],
-        rows: <DataRow>[
-          for (final Product product in products)
-            DataRow(
-              onSelectChanged: onView == null
-                  ? null
-                  : (bool? _) => onView!(product),
-              cells: <DataCell>[
-                DataCell(_ProductCell(product: product)),
-                DataCell(_SkuCell(product: product)),
-                DataCell(
-                  Text(product.categoryLabel, overflow: TextOverflow.ellipsis),
-                ),
-                DataCell(
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Text(
-                      CurrencyFormatter.format(product.sellingPrice),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontFeatures: <FontFeature>[
-                          FontFeature.tabularFigures(),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                DataCell(_StockCell(product: product)),
-                DataCell(_StatusCell(product: product)),
-                DataCell(
-                  Tooltip(
-                    message: DateFormatter.dateTime(product.updatedAt),
-                    child: Text(
-                      DateFormatter.relative(product.updatedAt),
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                ),
-                if (_showActions)
+          rows: <DataRow>[
+            for (final Product product in products)
+              DataRow(
+                onSelectChanged: onView == null
+                    ? null
+                    : (bool? _) => onView!(product),
+                cells: <DataCell>[
+                  DataCell(_ProductCell(product: product)),
+                  DataCell(_SkuCell(product: product)),
                   DataCell(
-                    _RowActions(
-                      product: product,
-                      canManage: canManage,
-                      isBusy: busyProductIds.contains(product.id),
-                      onView: onView,
-                      onEdit: onEdit,
-                      onToggleActive: onToggleActive,
+                    Text(
+                      product.categoryLabel,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-              ],
-            ),
-        ],
+                  DataCell(
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        CurrencyFormatter.format(product.sellingPrice),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontFeatures: <FontFeature>[
+                            FontFeature.tabularFigures(),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  DataCell(_StockCell(product: product)),
+                  DataCell(_StatusCell(product: product)),
+                  DataCell(
+                    Tooltip(
+                      message: DateFormatter.dateTime(product.updatedAt),
+                      child: Text(
+                        DateFormatter.relative(product.updatedAt),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (_showActions)
+                    DataCell(
+                      _RowActions(
+                        product: product,
+                        canManage: canManage,
+                        isBusy: busyProductIds.contains(product.id),
+                        onView: onView,
+                        onEdit: onEdit,
+                        onToggleActive: onToggleActive,
+                      ),
+                    ),
+                ],
+              ),
+          ],
         ),
       ),
     );

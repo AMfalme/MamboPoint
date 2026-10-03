@@ -69,20 +69,11 @@ class SkeletonRows extends StatelessWidget {
               children: <Widget>[
                 const SkeletonBox(width: 40, height: 40, borderRadius: 8),
                 const SizedBox(width: 12),
-                Expanded(
-                  flex: 3,
-                  child: SkeletonBox(height: rowHeight * 0.3),
-                ),
+                Expanded(flex: 3, child: SkeletonBox(height: rowHeight * 0.3)),
                 const SizedBox(width: 12),
-                Expanded(
-                  flex: 2,
-                  child: SkeletonBox(height: rowHeight * 0.3),
-                ),
+                Expanded(flex: 2, child: SkeletonBox(height: rowHeight * 0.3)),
                 const SizedBox(width: 12),
-                const Expanded(
-                  flex: 1,
-                  child: SkeletonBox(height: 14),
-                ),
+                const Expanded(flex: 1, child: SkeletonBox(height: 14)),
               ],
             ),
           ),

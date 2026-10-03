@@ -214,4 +214,3 @@ class ProductFilter {
       'ProductFilter(query: $query, categoryId: $categoryId, '
       'status: ${status.name}, stock: ${stock.name}, sort: ${sort.name})';
 }
-

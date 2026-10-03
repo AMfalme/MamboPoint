@@ -107,25 +107,19 @@ class AppTheme {
       ),
 
       dialogTheme: DialogThemeData(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
 
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         insetPadding: const EdgeInsets.all(AppSpacing.lg),
       ),
 
       chipTheme: ChipThemeData(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
-          side: BorderSide(
-            color: scheme.outlineVariant.withValues(alpha: 0.7),
-          ),
+          side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.7)),
         ),
         labelStyle: const TextStyle(fontSize: 13),
       ),

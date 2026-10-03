@@ -1,18 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/navigation/app_destination.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/error_mapper.dart';
+import '../../../core/widgets/app_sidebar.dart';
 import '../../../core/widgets/app_snack.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/error_state.dart';
+import '../../../core/widgets/mambo_logo.dart';
 import '../../../core/widgets/skeletons.dart';
+import '../../../features/cart/presentation/widgets/transaction_panel.dart';
+import '../../../features/cart/providers/cart_provider.dart';
 import '../../../models/product.dart';
 import '../domain/product_list_state.dart';
 import '../providers/product_list_provider.dart';
 import 'widgets/product_card.dart';
 import 'widgets/product_filters.dart';
+import 'widgets/product_grid.dart';
 import 'widgets/product_table.dart';
+import 'widgets/product_view_toggle.dart';
 
 /// The Product Management list screen
 /// (spec sections 10, 11, 12, 13 and 26 to 30).
@@ -30,12 +37,27 @@ class ProductsPage extends ConsumerStatefulWidget {
     this.onViewProduct,
     this.onEditProduct,
     this.onToggleActive,
+    this.onCheckout,
+    this.onSelectDestination,
+    this.showSidebar = true,
+    this.showTransaction = true,
   });
 
   final VoidCallback? onAddProduct;
   final ValueChanged<Product>? onViewProduct;
   final ValueChanged<Product>? onEditProduct;
   final ValueChanged<Product>? onToggleActive;
+
+  /// Raised by PAY NOW. Left null the button renders disabled.
+  final VoidCallback? onCheckout;
+
+  /// Sidebar destination selection.
+  final ValueChanged<AppDestination>? onSelectDestination;
+
+  /// Both are opt-out so the page can still be embedded in a bare scaffold
+  /// (tests, and the eventual per-section routes).
+  final bool showSidebar;
+  final bool showTransaction;
 
   @override
   ConsumerState<ProductsPage> createState() => _ProductsPageState();
@@ -44,6 +66,17 @@ class ProductsPage extends ConsumerStatefulWidget {
 class _ProductsPageState extends ConsumerState<ProductsPage> {
   /// Owned here so the "clear search" action can reach the field.
   final TextEditingController _searchController = TextEditingController();
+
+  /// Which presentation the list uses. Purely visual: both modes render the
+  /// same products with the same callbacks. Grid is the default because it is
+  /// the view a shopkeeper browses, and it is the only mode that works on a
+  /// phone.
+  ProductViewMode _viewMode = ProductViewMode.grid;
+
+  /// Both panels start expanded and can be minimised independently, so a
+  /// cashier working with one hand can reclaim either edge of the screen.
+  bool _sidebarCollapsed = false;
+  bool _transactionCollapsed = false;
 
   @override
   void dispose() {
@@ -60,32 +93,131 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
 
     return Scaffold(
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () => ref.read(productListProvider.notifier).refresh(),
-          child: ListView(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.lg,
-              vertical: AppSpacing.md,
-            ),
-            children: <Widget>[
-              Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1120),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: <Widget>[
-                      _PageHeader(onAddProduct: widget.onAddProduct),
-                      const SizedBox(height: AppSpacing.md),
-                      ProductFilters(searchController: _searchController),
-                      const SizedBox(height: AppSpacing.md),
-                      _buildContent(context, listState, canManage),
-                    ],
+        child: LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints constraints) {
+            // The panel only exists once something has been added; an empty
+            // cart has nothing to show and should not steal grid width.
+            final bool hasItems = !ref.watch(cartIsEmptyProvider);
+            final bool showTransaction = widget.showTransaction && hasItems;
+
+            // Wide enough to give the panel its own column. Below this it
+            // floats over the grid instead, because at that size the grid has
+            // already dropped to three columns and cannot spare 340px.
+            final bool inline =
+                showTransaction &&
+                constraints.maxWidth >=
+                    AppBreakpoints.transactionInlineMinWidth;
+
+            final Widget row = Row(
+              children: <Widget>[
+                if (widget.showSidebar) _buildSidebar(constraints.maxWidth),
+                Expanded(child: _buildPage(context, listState, canManage)),
+                if (inline) _buildTransactionPanel(),
+              ],
+            );
+
+            if (!showTransaction || inline) return row;
+
+            // Floating mode: the rail still sits in the layout so there is
+            // always something to tap, but the expanded panel overlays.
+            return Stack(
+              children: <Widget>[
+                row,
+                if (_transactionCollapsed)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: _buildTransactionPanel(),
+                  )
+                else
+                  Positioned(
+                    top: 0,
+                    bottom: 0,
+                    right: 0,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        boxShadow: <BoxShadow>[
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.18),
+                            blurRadius: 16,
+                            offset: const Offset(-4, 0),
+                          ),
+                        ],
+                      ),
+                      child: _buildTransactionPanel(),
+                    ),
                   ),
-                ),
-              ),
-            ],
-          ),
+              ],
+            );
+          },
         ),
+      ),
+    );
+  }
+
+  /// The navigation rail. Collapses to an icon strip by default on narrow
+  /// windows so the product grid keeps its columns; an explicit toggle always
+  /// overrides that default.
+  Widget _buildSidebar(double availableWidth) {
+    final bool defaultCollapsed =
+        availableWidth < AppBreakpoints.sidebarRailWidth;
+
+    return AppSidebar(
+      current: AppDestination.products,
+      collapsed: _sidebarCollapsed || defaultCollapsed,
+      onToggleCollapsed: () =>
+          setState(() => _sidebarCollapsed = !_sidebarCollapsed),
+      onSelect: widget.onSelectDestination,
+    );
+  }
+
+  /// The transaction panel, or the collapsed rail in its place.
+  ///
+  /// Minimising swaps the whole panel for the rail rather than hiding it, so the
+  /// running total stays on screen — the cashier still needs to see what they are
+  /// about to charge.
+  Widget _buildTransactionPanel() {
+    if (_transactionCollapsed) {
+      return TransactionRail(
+        onExpand: () => setState(() => _transactionCollapsed = false),
+      );
+    }
+
+    return TransactionPanel(
+      onCheckout: widget.onCheckout,
+      onToggleCollapsed: () => setState(() => _transactionCollapsed = true),
+    );
+  }
+
+  /// The page body: header, filters and whichever list presentation applies.
+  Widget _buildPage(
+    BuildContext context,
+    AsyncValue<ProductListState> listState,
+    bool canManage,
+  ) {
+    return RefreshIndicator(
+      onRefresh: () => ref.read(productListProvider.notifier).refresh(),
+      child: ListView(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.md,
+        ),
+        children: <Widget>[
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1120),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  _PageHeader(onAddProduct: widget.onAddProduct),
+                  const SizedBox(height: AppSpacing.md),
+                  ProductFilters(searchController: _searchController),
+                  const SizedBox(height: AppSpacing.md),
+                  _buildContent(context, listState, canManage),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -174,15 +306,46 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        _ResultSummary(
-          count: products.length,
-          isSearch: state.filter.hasQuery,
-          isReloading: state.isReloading,
+        LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints constraints) {
+            // The toggle is only offered where the table can actually render.
+            // Offering it below [AppBreakpoints.tableMinWidth] would leave the
+            // table selected while the grid stayed on screen.
+            final bool canSwitch =
+                constraints.maxWidth >= AppBreakpoints.tableMinWidth;
+            final bool useTable =
+                canSwitch && _viewMode == ProductViewMode.table;
+
+            return Row(
+              children: <Widget>[
+                Expanded(
+                  child: _ResultSummary(
+                    count: products.length,
+                    isSearch: state.filter.hasQuery,
+                    isReloading: state.isReloading,
+                  ),
+                ),
+                if (canSwitch) ...<Widget>[
+                  const SizedBox(width: AppSpacing.md),
+                  ProductViewToggle(
+                    mode: useTable
+                        ? ProductViewMode.table
+                        : ProductViewMode.grid,
+                    onChanged: (ProductViewMode mode) =>
+                        setState(() => _viewMode = mode),
+                  ),
+                ],
+              ],
+            );
+          },
         ),
         const SizedBox(height: AppSpacing.sm),
         LayoutBuilder(
           builder: (BuildContext context, BoxConstraints constraints) {
-            if (constraints.maxWidth >= AppBreakpoints.tableMinWidth) {
+            final bool wide =
+                constraints.maxWidth >= AppBreakpoints.tableMinWidth;
+
+            if (wide && _viewMode == ProductViewMode.table) {
               return Card(
                 clipBehavior: Clip.antiAlias,
                 child: ProductTable(
@@ -191,6 +354,28 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                   onView: widget.onViewProduct,
                   onEdit: widget.onEditProduct,
                   onToggleActive: widget.onToggleActive,
+                ),
+              );
+            }
+
+            // Wide enough for the grid: image-forward tiles. Below the grid's
+            // own minimum the stacked card list is more readable than two
+            // cramped columns.
+            if (constraints.maxWidth >= AppBreakpoints.gridMinWidth) {
+              return Card(
+                clipBehavior: Clip.antiAlias,
+                child: ProductGrid(
+                  products: products,
+                  canManage: canManage,
+                  onView: widget.onViewProduct,
+                  onEdit: widget.onEditProduct,
+                  onToggleActive: widget.onToggleActive,
+                  // Hovering a tile reveals the add control, and the grid is
+                  // the only presentation that offers it: the table and card
+                  // list are inventory views, not till views.
+                  onAddToCart: widget.showTransaction
+                      ? ref.read(cartProvider.notifier).add
+                      : null,
                 ),
               );
             }
@@ -222,9 +407,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
           const SizedBox(height: AppSpacing.md),
           Center(
             child: OutlinedButton.icon(
-              onPressed: state.isLoadingMore
-                  ? null
-                  : () => _loadMore(context),
+              onPressed: state.isLoadingMore ? null : () => _loadMore(context),
               icon: state.isLoadingMore
                   ? const SizedBox(
                       width: 16,
@@ -264,9 +447,11 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
   }
 }
 
-/// Compact POS page header: strong title + muted subtitle on the left,
-/// prominent but not oversized Add action on the right. Stacks on narrow
-/// widths so Add stays reachable without consuming vertical space.
+/// Compact POS page header.
+///
+/// Carries the MamboPoint POS lockup above the screen title, then the title and
+/// subtitle on the left with Add Product on the right. Stacks on narrow widths
+/// so Add stays reachable without consuming vertical space.
 class _PageHeader extends StatelessWidget {
   const _PageHeader({required this.onAddProduct});
 
@@ -276,7 +461,8 @@ class _PageHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final bool narrow = constraints.maxWidth < 560;
+        final bool narrow =
+            constraints.maxWidth < AppBreakpoints.headerStackWidth;
 
         final Widget title = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -301,9 +487,9 @@ class _PageHeader extends StatelessWidget {
           ],
         );
 
-        if (onAddProduct == null) return title;
-
-        final Widget addButton = narrow
+        final Widget? addButton = onAddProduct == null
+            ? null
+            : narrow
             ? SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
@@ -333,13 +519,38 @@ class _PageHeader extends StatelessWidget {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
-            children: <Widget>[title, const SizedBox(height: AppSpacing.sm), addButton],
+            children: <Widget>[
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: MamboLogo(markSize: 30),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              title,
+              if (addButton != null) ...<Widget>[
+                const SizedBox(height: AppSpacing.sm),
+                addButton,
+              ],
+            ],
           );
         }
 
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: <Widget>[Expanded(child: title), addButton],
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: MamboLogo(markSize: 36),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: <Widget>[
+                Expanded(child: title),
+                ?addButton,
+              ],
+            ),
+          ],
         );
       },
     );
@@ -383,12 +594,18 @@ class _ResultSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final String noun = isSearch ? 'match' : 'product';
+    // Explicit plurals: appending "es" to "product" would render "productes".
+    final String noun = switch ((isSearch, count)) {
+      (true, 1) => 'match',
+      (true, _) => 'matches',
+      (false, 1) => 'product',
+      (false, _) => 'products',
+    };
 
     return Row(
       children: <Widget>[
         Text(
-          '$count $noun${count == 1 ? '' : 'es'}',
+          '$count $noun',
           style: theme.textTheme.bodyMedium?.copyWith(
             fontWeight: FontWeight.w600,
             color: theme.colorScheme.onSurface,
@@ -415,4 +632,3 @@ class _ResultSummary extends StatelessWidget {
     );
   }
 }
-

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../widgets/app_snack.dart';
+import '../../core/navigation/app_destination.dart';
 import '../../models/product.dart';
 import '../../features/products/presentation/products_page.dart';
 
@@ -31,6 +32,14 @@ class PreviewProductsPage extends StatelessWidget {
       onToggleActive: (Product product) => AppSnack.info(
         context,
         'Preview: status changes are disabled in the review build.',
+      ),
+      onCheckout: () => AppSnack.info(
+        context,
+        'Preview: taking a payment lands with the Sales module.',
+      ),
+      onSelectDestination: (AppDestination destination) => AppSnack.info(
+        context,
+        'Preview: ${destination.label} lands in a later phase.',
       ),
     );
   }

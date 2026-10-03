@@ -92,7 +92,11 @@ class ProductRepository implements ProductReader {
           return Product.fromDocument(doc);
         })
         .handleError((Object error, StackTrace stackTrace) {
-          logError(error, stackTrace, context: 'ProductRepository.watchProduct');
+          logError(
+            error,
+            stackTrace,
+            context: 'ProductRepository.watchProduct',
+          );
           throw mapError(error, fallbackMessage: ErrorMessages.loadProduct);
         });
   }
@@ -155,9 +159,7 @@ class ProductRepository implements ProductReader {
         .toList(growable: false);
 
     final bool hasMore = fetched.length > limit;
-    final List<Product> page = hasMore
-        ? fetched.sublist(0, limit)
-        : fetched;
+    final List<Product> page = hasMore ? fetched.sublist(0, limit) : fetched;
 
     // Stock state is derived from two fields and is deliberately not
     // persisted, so the stock filter is applied here rather than in the query.
@@ -315,5 +317,4 @@ class ProductRepository implements ProductReader {
 
     products.sort(compare);
   }
-
 }

@@ -159,9 +159,8 @@ class _FilterShell extends StatelessWidget {
     child: InputDecorator(
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: Theme.of(
-          context,
-        ).textTheme.labelSmall?.copyWith(fontSize: 11),
+        labelStyle: Theme.of(context).textTheme.labelSmall
+            ?.copyWith(fontSize: 11),
         floatingLabelBehavior: FloatingLabelBehavior.always,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.sm,
@@ -169,9 +168,8 @@ class _FilterShell extends StatelessWidget {
         ),
       ),
       child: DefaultTextStyle.merge(
-        style: Theme.of(
-          context,
-        ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w500),
+        style: Theme.of(context).textTheme.bodySmall
+            ?.copyWith(fontWeight: FontWeight.w500),
         child: child,
       ),
     ),
@@ -217,9 +215,8 @@ class _CategoryDropdown extends StatelessWidget {
               child: Text(category.name, overflow: TextOverflow.ellipsis),
             ),
         ],
-        onChanged: (String? value) => onChanged(
-          value == null || value == _allSentinel ? null : value,
-        ),
+        onChanged: (String? value) =>
+            onChanged(value == null || value == _allSentinel ? null : value),
       ),
     ),
   );

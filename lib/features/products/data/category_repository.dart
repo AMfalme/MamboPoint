@@ -35,9 +35,8 @@ class CategoryRepository {
         .orderBy('nameLower')
         .snapshots()
         .map(
-          (QuerySnapshot<Map<String, dynamic>> snapshot) => snapshot.docs
-              .map(Category.fromDocument)
-              .toList(growable: false),
+          (QuerySnapshot<Map<String, dynamic>> snapshot) =>
+              snapshot.docs.map(Category.fromDocument).toList(growable: false),
         )
         .handleError((Object error, StackTrace stackTrace) {
           logError(
@@ -64,9 +63,7 @@ class CategoryRepository {
           .orderBy('nameLower')
           .get();
 
-      return snapshot.docs
-          .map(Category.fromDocument)
-          .toList(growable: false);
+      return snapshot.docs.map(Category.fromDocument).toList(growable: false);
     } on AppException {
       rethrow;
     } catch (error, stackTrace) {

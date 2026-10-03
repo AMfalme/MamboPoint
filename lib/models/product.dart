@@ -141,8 +141,9 @@ class Product {
   bool get hasBarcode => (barcode ?? '').trim().isNotEmpty;
 
   /// Name of the category to display, falling back to a neutral label.
-  String get categoryLabel =>
-      (categoryName ?? '').trim().isEmpty ? 'Uncategorised' : categoryName!.trim();
+  String get categoryLabel => (categoryName ?? '').trim().isEmpty
+      ? 'Uncategorised'
+      : categoryName!.trim();
 
   /// Case-insensitive match across name, SKU and barcode.
   ///

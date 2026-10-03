@@ -19,9 +19,7 @@ Future<void> main() async {
   // DateFormat use, otherwise intl throws LocaleDataException. The local
   // build bundles every locale, so one call covers the whole app.
   await initializeDateFormatting('en', null);
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(
     ProviderScope(
       overrides: [
@@ -29,14 +27,10 @@ Future<void> main() async {
         // an in-memory catalogue, so no signed-in session or Firestore data
         // is needed to review what has been built so far.
         productReaderProvider.overrideWithValue(PreviewProductReader()),
-        requireBusinessIdProvider.overrideWithValue(
-          PreviewCatalog.businessId,
-        ),
+        requireBusinessIdProvider.overrideWithValue(PreviewCatalog.businessId),
         currentUserRoleProvider.overrideWithValue(UserRole.manager),
         categoriesProvider.overrideWith(
-          (ref) => Stream<List<Category>>.value(
-            PreviewCatalog.categories,
-          ),
+          (ref) => Stream<List<Category>>.value(PreviewCatalog.categories),
         ),
       ],
       child: const MyApp(),
@@ -59,4 +53,3 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-

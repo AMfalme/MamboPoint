@@ -38,11 +38,13 @@ class ProductListNotifier extends AsyncNotifier<ProductListState> {
   Future<ProductListState> build() async {
     ref.onDispose(() => _debounce?.cancel());
     final String businessId = ref.watch(requireBusinessIdProvider);
-    return _fetchFirstPage(businessId: businessId, filter: const ProductFilter());
+    return _fetchFirstPage(
+      businessId: businessId,
+      filter: const ProductFilter(),
+    );
   }
 
-  ProductFilter get _filter =>
-      state.value?.filter ?? const ProductFilter();
+  ProductFilter get _filter => state.value?.filter ?? const ProductFilter();
 
   ProductReader get _repository => ref.read(productReaderProvider);
 
@@ -192,8 +194,7 @@ productListProvider =
 
 /// Products currently on screen, or an empty list while loading.
 final Provider<List<Product>> visibleProductsProvider = Provider<List<Product>>(
-  (ref) =>
-      ref.watch(productListProvider).value?.products ?? const <Product>[],
+  (ref) => ref.watch(productListProvider).value?.products ?? const <Product>[],
 );
 
 /// Whether the signed-in user may create, edit or deactivate products.
@@ -209,5 +210,6 @@ final Provider<bool> canManageProductsProvider = Provider<bool>(
 /// Exposed separately so filter controls rebuild only when the filter changes,
 /// not on every product-list update.
 final Provider<ProductFilter> productFilterProvider = Provider<ProductFilter>(
-  (ref) => ref.watch(productListProvider).value?.filter ?? const ProductFilter(),
+  (ref) =>
+      ref.watch(productListProvider).value?.filter ?? const ProductFilter(),
 );

@@ -40,9 +40,8 @@ class UserRepository {
 
   Future<AppUser?> getUser(String uid) async {
     try {
-      final DocumentSnapshot<Map<String, dynamic>> doc = await _userRef(
-        uid,
-      ).get();
+      final DocumentSnapshot<Map<String, dynamic>> doc = await _userRef(uid)
+          .get();
       if (!doc.exists) return null;
       return AppUser.fromDocument(doc);
     } on AppException {

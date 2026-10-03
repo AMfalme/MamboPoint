@@ -29,7 +29,8 @@ class AppException implements Exception {
   final String? code;
 
   @override
-  String toString() => 'AppException($code): $userMessage'
+  String toString() =>
+      'AppException($code): $userMessage'
       '${technicalMessage == null ? '' : ' <- $technicalMessage'}';
 }
 
@@ -57,7 +58,8 @@ class DuplicateBarcodeException extends AppException {
 class ConcurrentModificationException extends AppException {
   const ConcurrentModificationException()
     : super(
-        userMessage: 'Someone else changed this item while you were editing. '
+        userMessage:
+            'Someone else changed this item while you were editing. '
             'Please reload and try again.',
         code: 'concurrent-modification',
       );
@@ -152,18 +154,18 @@ AppException mapError(Object error, {required String fallbackMessage}) {
   );
 }
 
-String _messageForFirebaseCode(String code, String fallback) =>
-    switch (code) {
-      'permission-denied' => ErrorMessages.noPermission,
-      'unauthenticated' => ErrorMessages.sessionExpired,
-      'unavailable' || 'deadline-exceeded' || 'network-request-failed' =>
-        ErrorMessages.unreachable,
-      'not-found' || 'document-missing' => ErrorMessages.malformedResponse,
-      'already-exists' || 'aborted' => ErrorMessages.tooManyRequests,
-      'resource-exhausted' => ErrorMessages.tooManyRequests,
-      'data-loss' => ErrorMessages.malformedResponse,
-      _ => fallback,
-    };
+String _messageForFirebaseCode(String code, String fallback) => switch (code) {
+  'permission-denied' => ErrorMessages.noPermission,
+  'unauthenticated' => ErrorMessages.sessionExpired,
+  'unavailable' ||
+  'deadline-exceeded' ||
+  'network-request-failed' => ErrorMessages.unreachable,
+  'not-found' || 'document-missing' => ErrorMessages.malformedResponse,
+  'already-exists' || 'aborted' => ErrorMessages.tooManyRequests,
+  'resource-exhausted' => ErrorMessages.tooManyRequests,
+  'data-loss' => ErrorMessages.malformedResponse,
+  _ => fallback,
+};
 
 String _messageForAuthCode(String code, String fallback) => switch (code) {
   'invalid-email' => 'Enter a valid email address.',
@@ -175,8 +177,7 @@ String _messageForAuthCode(String code, String fallback) => switch (code) {
   'network-request-failed' => ErrorMessages.unreachable,
   'email-already-in-use' => 'An account already exists for this email.',
   'weak-password' => 'Choose a stronger password.',
-  'operation-not-allowed' =>
-    'Email sign-in is not enabled for this project.',
+  'operation-not-allowed' => 'Email sign-in is not enabled for this project.',
   _ => fallback,
 };
 
@@ -196,4 +197,3 @@ void logError(
     stackTrace: stackTrace,
   );
 }
-

@@ -49,6 +49,5 @@ class CurrencyFormatter {
   }
 
   /// `45` / `1,250` — plain integer quantities for stock columns.
-  static String formatQuantity(num? quantity) =>
-      _whole.format(quantity ?? 0);
+  static String formatQuantity(num? quantity) => _whole.format(quantity ?? 0);
 }

@@ -8,6 +8,18 @@ import 'package:flutter/material.dart';
 class AppColors {
   const AppColors._();
 
+  // --- Brand identity -------------------------------------------------
+  // Taken straight from the MamboPoint POS logo so the interface, the mark and
+  // the wordmark always read as one system.
+  /// Deep teal: the wordmark ink and the dark end of the mark gradient.
+  static const Color brandTeal = Color(0xFF0E6F6C);
+
+  /// Mint: the light end of the mark gradient and the POS accent.
+  static const Color brandMint = Color(0xFF63E6B3);
+
+  /// Darkest teal, used for gradients and hover states on the mark.
+  static const Color brandTealDeep = Color(0xFF0A4F4D);
+
   // --- Positive / active -------------------------------------------
   // Muted enterprise tones: calm on white, text still passes contrast.
   static const Color successForeground = Color(0xFF1B6B3A);
@@ -47,7 +59,18 @@ class AppSpacing {
   static const EdgeInsets cardPadding = EdgeInsets.all(lg);
 }
 
+/// How the product list is laid out.
+///
+/// Grid is the merchandising view a shopkeeper scans at the till; table is the
+/// dense view for working through stock, pricing and metadata. The choice is
+/// presentation only — it never affects which products are loaded or filtered.
+enum ProductViewMode { grid, table }
+
 /// Layout breakpoints used by the responsive product list.
+///
+/// Grid and table are both offered on every screen that has room; on a phone the
+/// grid wins because a table cannot fit, and the toggle is hidden rather than
+/// offering a mode that would not render.
 class AppBreakpoints {
   const AppBreakpoints._();
 
@@ -56,4 +79,36 @@ class AppBreakpoints {
 
   /// Below this width filter controls stack vertically.
   static const double filterRowMinWidth = 720;
+
+  /// Below this width the header stacks and the brand lockup goes compact.
+  static const double headerStackWidth = 560;
+
+  /// Below this width the grid would be cramped, so the stacked card list is
+  /// used instead.
+  static const double gridMinWidth = 520;
+
+  // --- POS shell ------------------------------------------------------
+  // The sidebar and the transaction panel are optional furniture around the
+  // product list, so each one has a width at which it stops being affordable.
+
+  /// Below this width the navigation sidebar defaults to its icon rail rather
+  /// than taking a readable slice out of the product grid. An explicit toggle
+  /// always wins over this default.
+  static const double sidebarRailWidth = 1000;
+
+  /// Below this width the transaction panel floats over the content instead of
+  /// sitting in the layout beside it, so the grid keeps the full width.
+  static const double transactionInlineMinWidth = 900;
+
+  /// Standard width of the expanded sidebar.
+  static const double sidebarWidth = 236;
+
+  /// Width of the collapsed sidebar: icons plus padding.
+  static const double sidebarRailWidthCollapsed = 72;
+
+  /// Standard width of the expanded transaction panel.
+  static const double transactionWidth = 340;
+
+  /// Width of the collapsed transaction panel rail.
+  static const double transactionRailWidth = 60;
 }

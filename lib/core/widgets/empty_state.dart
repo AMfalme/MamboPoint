@@ -60,10 +60,11 @@ class EmptyState extends StatelessWidget {
               Text(
                 title,
                 textAlign: TextAlign.center,
-                style: (compact
-                        ? theme.textTheme.titleMedium
-                        : theme.textTheme.titleLarge)
-                    ?.copyWith(fontWeight: FontWeight.w600),
+                style:
+                    (compact
+                            ? theme.textTheme.titleMedium
+                            : theme.textTheme.titleLarge)
+                        ?.copyWith(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
               Text(
