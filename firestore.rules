@@ -1,0 +1,456 @@
+rules_version = '2';
+
+// =====================================================================
+// MamboPoint POS - Cloud Firestore Security Rules
+// ---------------------------------------------------------------------
+// Multi-tenant layout:
+//   users/{uid}
+//   businesses/{businessId}
+//   businesses/{businessId}/members/{uid}
+//   businesses/{businessId}/categories/{categoryId}
+//   businesses/{businessId}/products/{productId}
+//   businesses/{businessId}/counters/{counterId}
+//   businesses/{businessId}/skuIndex/{skuKey}
+//   businesses/{businessId}/barcodeIndex/{barcodeKey}
+//
+// Full schema + rationale: docs/FIRESTORE_DATA_MODEL.md
+//
+// Design notes:
+//  - The client never "declares" which business it may touch. The caller's
+//    role is resolved from trusted documents (members/{uid} then users/{uid})
+//    and compared against the businessId taken from the request path.
+//  - Every get() is guarded by exists() so a missing document can never
+//    throw and leak state.
+//  - Products and categories are soft-deleted only (isActive=false).
+//    Hard deletes are denied for every client role.
+// =====================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // -----------------------------------------------------------------
+    // Identity helpers
+    // -----------------------------------------------------------------
+
+    function isSignedIn() {
+      return request.auth != null && request.auth.uid != null;
+    }
+
+    function uid() {
+      return request.auth.uid;
+    }
+
+    function userPath() {
+      return /databases/$(database)/documents/users/$(uid());
+    }
+
+    function memberPath(businessId) {
+      return /databases/$(database)/documents/businesses/$(businessId)/members/$(uid());
+    }
+
+    function businessPath(businessId) {
+      return /databases/$(database)/documents/businesses/$(businessId);
+    }
+
+    function userExists() {
+      return isSignedIn() && exists(userPath());
+    }
+
+    function userData() {
+      return get(userPath()).data;
+    }
+
+    function memberExists(businessId) {
+      return isSignedIn() && exists(memberPath(businessId));
+    }
+
+    function memberData(businessId) {
+      return get(memberPath(businessId)).data;
+    }
+
+    function businessExists(businessId) {
+      return exists(businessPath(businessId));
+    }
+
+    function businessData(businessId) {
+      return get(businessPath(businessId)).data;
+    }
+
+    // An explicit members/{uid} document always wins (multi-business support).
+    // Otherwise a user's "primary" business in users/{uid} is used.
+    function roleFor(businessId) {
+      return memberExists(businessId)
+        ? memberData(businessId).role
+        : (userExists()
+            ? (userData().businessId == businessId ? userData().role : null)
+            : null);
+    }
+
+    function isMember(businessId) {
+      return isSignedIn() && roleFor(businessId) != null;
+    }
+
+    function hasRole(businessId, allowed) {
+      return isSignedIn() && roleFor(businessId) in allowed;
+    }
+
+    // Spec section 23 permission matrix.
+    // Staff: view only for this phase (create/edit/deactivate are "Optional",
+    // we deliberately deny them until an explicit permission model is added).
+    function canViewProducts(businessId) {
+      return hasRole(businessId, ['owner', 'admin', 'manager', 'staff']);
+    }
+
+    function canManageProducts(businessId) {
+      return hasRole(businessId, ['owner', 'admin', 'manager']);
+    }
+
+    function canDeactivateProducts(businessId) {
+      return hasRole(businessId, ['owner', 'admin', 'manager']);
+    }
+
+    function canManageCategories(businessId) {
+      return hasRole(businessId, ['owner', 'admin', 'manager']);
+    }
+
+    function canManageBusiness(businessId) {
+      return hasRole(businessId, ['owner', 'admin']);
+    }
+
+    // -----------------------------------------------------------------
+    // Reusable value validators
+    // -----------------------------------------------------------------
+
+    function isStr(v) { return v is string; }
+    function isNum(v) { return v is number; }
+    function isInt(v) { return v is int; }
+    function isBool(v) { return v is bool; }
+    function isTimestamp(v) { return v is timestamp; }
+    function isStrOrNull(v) { return v == null || v is string; }
+
+    function isValidName(v) {
+      return isStr(v) && v.size() >= 1 && v.size() <= 120 && v == v.trim();
+    }
+
+    function isMoney(v) {
+      return isNum(v) && v >= 0 && v <= 1000000000;
+    }
+
+    function isQuantity(v) {
+      return isInt(v) && v >= 0 && v <= 1000000000;
+    }
+
+    // Field may not be rewritten by this update.
+    function unchanged(field) {
+      return request.resource.data[field] == resource.data[field];
+    }
+
+    // -----------------------------------------------------------------
+    // businesses/{businessId}
+    // -----------------------------------------------------------------
+
+    match /businesses/{businessId} {
+
+      function isValidBusiness(data) {
+        return data.id == businessId
+          && isValidName(data.name)
+          && data.currency is string && data.currency.size() == 3
+          && data.currency == data.currency.upper()
+          && data.ownerId is string && data.ownerId.size() >= 1
+          && data.isActive is bool
+          && data.createdAt is timestamp
+          && data.updatedAt is timestamp
+          && data.createdBy is string;
+      }
+
+      allow read: if isMember(businessId)
+        || (isSignedIn() && resource.data.ownerId == uid());
+
+      // Self-serve bootstrap: a signed-in user may register a business they
+      // own. This cannot hijack an existing tenant because ownerId is forced
+      // to equal the caller and the document id must be new.
+      allow create: if isSignedIn()
+        && request.resource.data.ownerId == uid()
+        && request.resource.data.createdBy == uid()
+        && request.resource.data.isActive == true
+        && isValidBusiness(request.resource.data);
+
+      allow update: if canManageBusiness(businessId)
+        && isValidBusiness(request.resource.data)
+        && unchanged('ownerId')
+        && unchanged('createdAt')
+        && unchanged('createdBy');
+
+      allow delete: if false;
+    }
+
+    // -----------------------------------------------------------------
+    // users/{uid}
+    // -----------------------------------------------------------------
+
+    match /users/{userId} {
+
+      function ownsTargetBusiness() {
+        return isSignedIn()
+          && resource.data.businessId is string
+          && roleFor(resource.data.businessId) in ['owner', 'admin'];
+      }
+
+      function isValidUserDoc() {
+        return request.resource.data.uid == userId
+          && isStr(request.resource.data.email)
+          && request.resource.data.email.size() <= 320
+          && isStr(request.resource.data.displayName)
+          && request.resource.data.displayName.size() <= 120
+          && isStr(request.resource.data.businessId)
+          && request.resource.data.businessId.size() >= 1
+          && request.resource.data.role in ['owner', 'admin', 'manager', 'staff']
+          && isBool(request.resource.data.isActive)
+          && isTimestamp(request.resource.data.createdAt)
+          && isTimestamp(request.resource.data.updatedAt);
+      }
+
+      // First login for the business owner: the user document may only be
+      // created with role=owner for a business whose ownerId is the caller.
+      function isSelfBootstrap() {
+        return uid() == userId
+          && request.resource.data.role == 'owner'
+          && businessExists(request.resource.data.businessId)
+          && businessData(request.resource.data.businessId).ownerId == uid();
+      }
+
+      function isOwnerAdminProvisioning() {
+        return isSignedIn()
+          && isStr(request.resource.data.businessId)
+          && roleFor(request.resource.data.businessId) in ['owner', 'admin'];
+      }
+
+      // A user may never move themselves between tenants or change own role.
+      function selfEditableFieldsOnly() {
+        return unchanged('role')
+          && unchanged('businessId')
+          && unchanged('createdAt');
+      }
+
+      allow read: if isSignedIn() && (uid() == userId || ownsTargetBusiness());
+
+      allow create: if isSignedIn()
+        && isValidUserDoc()
+        && (isSelfBootstrap() || isOwnerAdminProvisioning());
+
+      allow update: if isSignedIn()
+        && isValidUserDoc()
+        && (
+          (uid() == userId && selfEditableFieldsOnly())
+          || (isMember(request.resource.data.businessId)
+              && roleFor(request.resource.data.businessId) in ['owner', 'admin']
+              && request.resource.data.businessId == resource.data.businessId)
+        );
+
+      allow delete: if false;
+    }
+
+    // -----------------------------------------------------------------
+    // businesses/{businessId}/members/{uid}
+    // -----------------------------------------------------------------
+
+    match /businesses/{businessId}/members/{memberId} {
+
+      function isValidMemberDoc() {
+        return request.resource.data.uid == memberId
+          && request.resource.data.role in ['owner', 'admin', 'manager', 'staff']
+          && isBool(request.resource.data.isActive)
+          && isTimestamp(request.resource.data.createdAt)
+          && isTimestamp(request.resource.data.updatedAt);
+      }
+
+      allow read: if isMember(businessId);
+
+      allow create: if canManageBusiness(businessId)
+        && isValidMemberDoc();
+
+      allow update: if canManageBusiness(businessId)
+        && isValidMemberDoc()
+        && unchanged('createdAt');
+
+      allow delete: if canManageBusiness(businessId);
+    }
+
+    // -----------------------------------------------------------------
+    // Nullable value validators (defined here so they can reuse isStrOrNull)
+    // -----------------------------------------------------------------
+
+    function isTextOrNull(v, maxLen) {
+      return isStrOrNull(v) && (v == null || v.size() <= maxLen);
+    }
+
+    // Optional short code (barcode, ids, names) that must be trimmed and
+    // non-empty when present.
+    function isOptionalCode(v, maxLen) {
+      return isStrOrNull(v)
+        && (v == null || (v.size() >= 1 && v.size() <= maxLen && v == v.trim()));
+    }
+
+    // -----------------------------------------------------------------
+    // businesses/{businessId}/categories/{categoryId}
+    // -----------------------------------------------------------------
+
+    match /businesses/{businessId}/categories/{categoryId} {
+
+      function isValidCategory() {
+        return request.resource.data.id == categoryId
+          && isValidName(request.resource.data.name)
+          && isStr(request.resource.data.nameLower)
+          && request.resource.data.nameLower == request.resource.data.name.lower()
+          && isTextOrNull(request.resource.data.description, 1000)
+          && isBool(request.resource.data.isActive)
+          && isTimestamp(request.resource.data.createdAt)
+          && isTimestamp(request.resource.data.updatedAt)
+          && isStr(request.resource.data.createdBy)
+          && isStr(request.resource.data.updatedBy);
+      }
+
+      allow read: if isMember(businessId);
+
+      allow create: if canManageCategories(businessId)
+        && isValidCategory()
+        && request.resource.data.createdBy == uid()
+        && request.resource.data.updatedBy == uid();
+
+      allow update: if canManageCategories(businessId)
+        && isValidCategory()
+        && unchanged('createdAt')
+        && unchanged('createdBy')
+        && request.resource.data.updatedBy == uid();
+
+      allow delete: if false;
+    }
+
+    // -----------------------------------------------------------------
+    // businesses/{businessId}/products/{productId}
+    // -----------------------------------------------------------------
+
+    match /businesses/{businessId}/products/{productId} {
+
+      function isValidProduct() {
+        return request.resource.data.id == productId
+          && isValidName(request.resource.data.name)
+          && isStr(request.resource.data.nameLower)
+          && request.resource.data.nameLower == request.resource.data.name.lower()
+          && request.resource.data.nameTokens is list
+          && request.resource.data.nameTokens.size() <= 24
+          && isStr(request.resource.data.sku)
+          && request.resource.data.sku.size() >= 1
+          && request.resource.data.sku.size() <= 64
+          && request.resource.data.sku == request.resource.data.sku.trim()
+          && isStr(request.resource.data.skuLower)
+          && request.resource.data.skuLower == request.resource.data.sku.lower()
+          && isOptionalCode(request.resource.data.barcode, 64)
+          && isOptionalCode(request.resource.data.categoryId, 128)
+          && isOptionalCode(request.resource.data.categoryName, 120)
+          && isTextOrNull(request.resource.data.description, 1000)
+          && isTextOrNull(request.resource.data.imageUrl, 2048)
+          && isStr(request.resource.data.unit)
+          && request.resource.data.unit.size() >= 1
+          && request.resource.data.unit.size() <= 32
+          && isMoney(request.resource.data.purchasePrice)
+          && isMoney(request.resource.data.sellingPrice)
+          && isQuantity(request.resource.data.stockQuantity)
+          && isQuantity(request.resource.data.lowStockThreshold)
+          && isBool(request.resource.data.isActive)
+          && isTimestamp(request.resource.data.createdAt)
+          && isTimestamp(request.resource.data.updatedAt)
+          && isStr(request.resource.data.createdBy)
+          && isStr(request.resource.data.updatedBy);
+      }
+
+      // Every business member (including staff) may list and read products.
+      allow read: if canViewProducts(businessId);
+
+      allow create: if canManageProducts(businessId)
+        && isValidProduct()
+        && request.resource.data.createdBy == uid()
+        && request.resource.data.updatedBy == uid();
+
+      // Covers normal edits and activate/deactivate. Audit fields are
+      // preserved and retagged with the current user.
+      allow update: if canManageProducts(businessId)
+        && isValidProduct()
+        && unchanged('createdAt')
+        && unchanged('createdBy')
+        && request.resource.data.updatedBy == uid();
+
+      // Spec section 9: products are never hard-deleted by a client.
+      allow delete: if false;
+    }
+
+    // -----------------------------------------------------------------
+    // businesses/{businessId}/counters/{counterId}
+    // Transactional counters (SKU sequence). Advancing a counter changes
+    // product identifiers, so it needs the same rights as editing products.
+    // -----------------------------------------------------------------
+
+    match /businesses/{businessId}/counters/{counterId} {
+
+      function isValidCounter() {
+        return counterId == 'sku'
+          && isInt(request.resource.data.current)
+          && request.resource.data.current >= 0
+          && request.resource.data.current <= 100000000;
+      }
+
+      allow read: if canViewProducts(businessId);
+      allow create: if canManageProducts(businessId) && isValidCounter();
+      allow update: if canManageProducts(businessId) && isValidCounter();
+      allow delete: if false;
+    }
+
+    // -----------------------------------------------------------------
+    // businesses/{businessId}/skuIndex/{skuKey}
+    // businesses/{businessId}/barcodeIndex/{barcodeKey}
+    // Firestore has no native unique constraint, so uniqueness inside a
+    // business is enforced with a transactional "claim" document whose id
+    // is the normalized SKU/barcode value.
+    // -----------------------------------------------------------------
+
+    match /businesses/{businessId}/skuIndex/{skuKey} {
+
+      function isValidSkuClaim() {
+        return skuKey.size() >= 1
+          && skuKey.size() <= 64
+          && isStr(request.resource.data.productId)
+          && request.resource.data.productId.size() >= 1
+          && request.resource.data.productId.size() <= 128;
+      }
+
+      allow read: if canViewProducts(businessId);
+      allow create: if canManageProducts(businessId) && isValidSkuClaim();
+      allow update: if canManageProducts(businessId) && isValidSkuClaim();
+      allow delete: if canManageProducts(businessId);
+    }
+
+    match /businesses/{businessId}/barcodeIndex/{barcodeKey} {
+
+      function isValidBarcodeClaim() {
+        return barcodeKey.size() >= 1
+          && barcodeKey.size() <= 64
+          && isStr(request.resource.data.productId)
+          && request.resource.data.productId.size() >= 1
+          && request.resource.data.productId.size() <= 128;
+      }
+
+      allow read: if canViewProducts(businessId);
+      allow create: if canManageProducts(businessId) && isValidBarcodeClaim();
+      allow update: if canManageProducts(businessId) && isValidBarcodeClaim();
+      allow delete: if canManageProducts(businessId);
+    }
+
+    // -----------------------------------------------------------------
+    // Default deny: nothing outside the rules above is reachable.
+    // -----------------------------------------------------------------
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

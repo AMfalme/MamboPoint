@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "624779079622",
+    "project_id": "mambo-point",
+    "storage_bucket": "mambo-point.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:624779079622:android:447708dac8a2d81b4e8cc7",
+        "android_client_info": {
+          "package_name": "com.example.mambopoint"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAlekQPQnaJWkYhzO_1EHKI2FEs-CoSQC0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,103 @@
+rules_version = '2';
+
+// =====================================================================
+// MamboPoint POS - Cloud Storage Security Rules
+// ---------------------------------------------------------------------
+// Path layout:
+//   businesses/{businessId}/products/{productId}/{fileName}
+//
+// Only members of the owning business may read product images, and only
+// owner/admin/manager roles may write them. Tenant membership is resolved
+// from Cloud Firestore, exactly like firestore.rules, so a caller can
+// never reach another business's assets by guessing a path.
+// =====================================================================
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // -----------------------------------------------------------------
+    // Identity / tenant helpers (mirrors firestore.rules)
+    // -----------------------------------------------------------------
+
+    function isSignedIn() {
+      return request.auth != null && request.auth.uid != null;
+    }
+
+    function uid() {
+      return request.auth.uid;
+    }
+
+    function userExists() {
+      return isSignedIn()
+        && firestore.exists(/databases/(default)/documents/users/$(uid()));
+    }
+
+    function userData() {
+      return firestore.get(/databases/(default)/documents/users/$(uid())).data;
+    }
+
+    function memberExists(businessId) {
+      return isSignedIn()
+        && firestore.exists(
+             /databases/(default)/documents/businesses/$(businessId)/members/$(uid()));
+    }
+
+    function memberData(businessId) {
+      return firestore.get(
+               /databases/(default)/documents/businesses/$(businessId)/members/$(uid())).data;
+    }
+
+    // Explicit membership document wins, otherwise the user's primary
+    // business recorded in users/{uid} is used.
+    function roleFor(businessId) {
+      return memberExists(businessId)
+        ? memberData(businessId).role
+        : (userExists()
+            ? (userData().businessId == businessId ? userData().role : null)
+            : null);
+    }
+
+    function hasRole(businessId, allowed) {
+      return isSignedIn() && roleFor(businessId) in allowed;
+    }
+
+    function canView(businessId) {
+      return hasRole(businessId, ['owner', 'admin', 'manager', 'staff']);
+    }
+
+    function canWrite(businessId) {
+      return hasRole(businessId, ['owner', 'admin', 'manager']);
+    }
+
+    // -----------------------------------------------------------------
+    // Upload constraints (spec section 20)
+    // -----------------------------------------------------------------
+
+    function isValidImageUpload() {
+      return request.resource.size <= 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*')
+        && request.resource.name.size() <= 512;
+    }
+
+    // -----------------------------------------------------------------
+    // businesses/{businessId}/products/{productId}/{fileName}
+    // -----------------------------------------------------------------
+
+    match /businesses/{businessId}/products/{productId}/{fileName} {
+
+      allow read: if canView(businessId);
+
+      allow create, update: if canWrite(businessId) && isValidImageUpload();
+
+      allow delete: if canWrite(businessId);
+    }
+
+    // -----------------------------------------------------------------
+    // Default deny
+    // -----------------------------------------------------------------
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
