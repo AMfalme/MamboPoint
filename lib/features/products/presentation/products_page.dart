@@ -604,20 +604,32 @@ class _ResultSummary extends StatelessWidget {
 
     return Row(
       children: <Widget>[
-        Text(
-          '$count $noun',
-          style: theme.textTheme.bodyMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: theme.colorScheme.onSurface,
-            height: 1.2,
+        // Flexible, so the count yields rather than overflowing: on a phone the
+        // page body is only a few hundred pixels wide once the sidebar and page
+        // padding are taken out, which is not enough for both labels at their
+        // natural length.
+        Flexible(
+          child: Text(
+            '$count $noun',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: theme.colorScheme.onSurface,
+              height: 1.2,
+            ),
           ),
         ),
-        Text(
-          isSearch ? ' · filtered results' : ' · showing all',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-            fontSize: 12,
-            height: 1.2,
+        Flexible(
+          child: Text(
+            isSearch ? ' · filtered results' : ' · showing all',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontSize: 12,
+              height: 1.2,
+            ),
           ),
         ),
         if (isReloading) ...<Widget>[

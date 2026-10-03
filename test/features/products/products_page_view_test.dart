@@ -86,8 +86,10 @@ void main() {
   testWidgets('the brand lockup is rendered', (WidgetTester tester) async {
     await pumpProducts(tester);
 
-    expect(find.text('MamboPoint'), findsOneWidget);
-    expect(find.text('POS'), findsOneWidget);
+    // Two lockups on purpose: one in the sidebar, one in the page header. The
+    // test guards the brand staying visible, not its count.
+    expect(find.text('MamboPoint'), findsWidgets);
+    expect(find.text('POS'), findsWidgets);
   });
 
   testWidgets('no overflow on a narrow phone', (WidgetTester tester) async {
