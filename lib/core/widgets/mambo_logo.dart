@@ -46,31 +46,40 @@ class MamboLogo extends StatelessWidget {
           children: <Widget>[
             mark,
             SizedBox(width: markSize * 0.28),
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  'MamboPoint',
-                  style: TextStyle(
-                    color: wordmarkColor,
-                    fontSize: markSize * 0.44,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.6,
-                    height: 1.05,
+            // Flexible, not fixed: the lockup is used at several widths (the
+            // sidebar is narrower than the page header), so the wordmark has to
+            // be allowed to give way rather than overflow its parent.
+            Flexible(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    'MamboPoint',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: wordmarkColor,
+                      fontSize: markSize * 0.44,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.6,
+                      height: 1.05,
+                    ),
                   ),
-                ),
-                Text(
-                  'POS',
-                  style: TextStyle(
-                    color: subColor,
-                    fontSize: markSize * 0.3,
-                    fontWeight: FontWeight.w400,
-                    letterSpacing: markSize * 0.13,
-                    height: 1.15,
+                  Text(
+                    'POS',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: subColor,
+                      fontSize: markSize * 0.3,
+                      fontWeight: FontWeight.w400,
+                      letterSpacing: markSize * 0.13,
+                      height: 1.15,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),
