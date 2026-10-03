@@ -7,10 +7,10 @@ import 'package:intl/intl.dart';
 class DateFormatter {
   const DateFormatter._();
 
-  static final DateFormat _dayMonthYear = DateFormat('d MMM yyyy', 'en_KE');
+  static final DateFormat _dayMonthYear = DateFormat('d MMM yyyy', 'en');
   static final DateFormat _dayMonthYearTime = DateFormat(
     'd MMM yyyy, HH:mm',
-    'en_KE',
+    'en',
   );
 
   /// `4 Oct 2026`

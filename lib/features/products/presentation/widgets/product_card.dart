@@ -9,9 +9,8 @@ import 'product_thumbnail.dart';
 
 /// Card representation of a product, used on phone widths.
 ///
-/// Spec section 10 requires the table to become a readable card list on small
-/// screens rather than becoming unusable, and spec section 30 requires mobile
-/// users to still see stock, prices and status.
+/// Compact POS card: 44px identity row, scannable price/stock row, muted
+/// badges + updated stamp. Tapping anywhere views the product.
 class ProductCard extends StatelessWidget {
   const ProductCard({
     super.key,
@@ -40,42 +39,91 @@ class ProductCard extends StatelessWidget {
       child: InkWell(
         onTap: isBusy ? null : onView,
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: 10,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: <Widget>[
-                  ProductThumbnail(product: product, size: 48),
-                  const SizedBox(width: AppSpacing.md),
+                  ProductThumbnail(product: product, size: 40),
+                  const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
                         Text(
                           product.name,
-                          maxLines: 2,
+                          maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.titleSmall?.copyWith(
+                          style: theme.textTheme.bodyMedium?.copyWith(
                             fontWeight: FontWeight.w600,
+                            height: 1.25,
                           ),
                         ),
-                        const SizedBox(height: 4),
                         Text(
-                          '${product.sku}  •  ${product.categoryLabel}',
+                          product.hasBarcode
+                              ? '${product.sku}  •  ${product.barcode}'
+                              : product.sku,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: scheme.onSurfaceVariant,
+                            fontSize: 12,
+                            height: 1.25,
+                          ),
+                        ),
+                        Text(
+                          product.categoryLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                            fontSize: 12,
+                            height: 1.25,
                           ),
                         ),
                       ],
                     ),
                   ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Text(
+                        CurrencyFormatter.format(product.sellingPrice),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          fontFeatures: const <FontFeature>[
+                            FontFeature.tabularFigures(),
+                          ],
+                          height: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${CurrencyFormatter.formatQuantity(product.stockQuantity)} '
+                        '${product.unit}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 12,
+                          height: 1.2,
+                        ),
+                      ),
+                    ],
+                  ),
                   if (isBusy)
                     const Padding(
-                      padding: EdgeInsets.all(AppSpacing.sm),
+                      padding: EdgeInsets.only(left: AppSpacing.sm),
                       child: SizedBox(
                         width: 18,
                         height: 18,
@@ -91,37 +139,19 @@ class ProductCard extends StatelessWidget {
                     ),
                 ],
               ),
-              const SizedBox(height: AppSpacing.md),
-              Row(
-                children: <Widget>[
-                  Expanded(
-                    child: _Metric(
-                      label: 'Selling price',
-                      value: CurrencyFormatter.format(product.sellingPrice),
-                    ),
-                  ),
-                  Expanded(
-                    child: _Metric(
-                      label: 'Stock',
-                      value:
-                          '${CurrencyFormatter.formatQuantity(product.stockQuantity)} '
-                          '${product.unit}',
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.md),
+              const SizedBox(height: 8),
               Wrap(
-                spacing: AppSpacing.sm,
-                runSpacing: AppSpacing.sm,
+                spacing: AppSpacing.xs,
+                runSpacing: 6,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: <Widget>[
                   ProductActiveBadge(isActive: product.isActive, dense: true),
                   StockStatusBadge(status: product.stockStatus, dense: true),
                   Text(
-                    DateFormatter.relative(product.updatedAt),
+                    'Updated ${DateFormatter.relative(product.updatedAt)}',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: scheme.onSurfaceVariant,
+                      fontSize: 11.5,
                     ),
                   ),
                 ],
@@ -130,39 +160,6 @@ class ProductCard extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-/// A label/value pair, so prices and stock stay scannable on a phone.
-class _Metric extends StatelessWidget {
-  const _Metric({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Text(
-          label,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
     );
   }
 }
@@ -188,7 +185,9 @@ class _CardActions extends StatelessWidget {
 
     return PopupMenuButton<String>(
       tooltip: 'Product actions',
-      icon: const Icon(Icons.more_vert),
+      icon: const Icon(Icons.more_vert, size: 20),
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
       onSelected: (String action) {
         switch (action) {
           case 'edit':

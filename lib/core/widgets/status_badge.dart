@@ -30,18 +30,22 @@ class StatusBadge extends StatelessWidget {
       label: label,
       child: Container(
         padding: EdgeInsets.symmetric(
-          horizontal: dense ? 8 : 10,
-          vertical: dense ? 3 : 5,
+          horizontal: dense ? 7 : 9,
+          vertical: dense ? 2 : 4,
         ),
         decoration: BoxDecoration(
           color: background,
           borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: foreground.withValues(alpha: 0.16),
+            width: 1,
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             if (icon != null) ...<Widget>[
-              Icon(icon, size: dense ? 12 : 14, color: foreground),
+              Icon(icon, size: dense ? 11 : 13, color: foreground),
               const SizedBox(width: 4),
             ],
             Text(
@@ -51,6 +55,7 @@ class StatusBadge extends StatelessWidget {
                 fontSize: dense ? 11 : 12,
                 fontWeight: FontWeight.w600,
                 height: 1.2,
+                letterSpacing: 0.1,
               ),
             ),
           ],

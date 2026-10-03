@@ -9,20 +9,21 @@ class AppColors {
   const AppColors._();
 
   // --- Positive / active -------------------------------------------
-  static const Color successForeground = Color(0xFF0F5132);
-  static const Color successBackground = Color(0xFFD1E7DD);
+  // Muted enterprise tones: calm on white, text still passes contrast.
+  static const Color successForeground = Color(0xFF1B6B3A);
+  static const Color successBackground = Color(0xFFE5F2E8);
 
   // --- Warning / low stock -----------------------------------------
-  static const Color warningForeground = Color(0xFF7A4F01);
-  static const Color warningBackground = Color(0xFFFFF3CD);
+  static const Color warningForeground = Color(0xFF7A4D00);
+  static const Color warningBackground = Color(0xFFFBF0D3);
 
   // --- Negative / out of stock / destructive -----------------------
-  static const Color dangerForeground = Color(0xFFA52834);
-  static const Color dangerBackground = Color(0xFFF8D7DA);
+  static const Color dangerForeground = Color(0xFF9E2B25);
+  static const Color dangerBackground = Color(0xFFF9E3E0);
 
   // --- Neutral / inactive ------------------------------------------
-  static const Color neutralForeground = Color(0xFF48505A);
-  static const Color neutralBackground = Color(0xFFE9ECEF);
+  static const Color neutralForeground = Color(0xFF5B6470);
+  static const Color neutralBackground = Color(0xFFEEF1F4);
 
   // --- Informational ------------------------------------------------
   static const Color infoForeground = Color(0xFF0B5394);

@@ -45,15 +45,19 @@ class ProductThumbnail extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest,
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(borderRadius),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: 0.6),
+          width: 1,
+        ),
       ),
       alignment: Alignment.center,
       child: Icon(
         // A grocery-friendly glyph: most MamboPoint catalogues are produce.
         Icons.shopping_basket_outlined,
-        size: size * 0.5,
-        color: scheme.onSurfaceVariant,
+        size: size * 0.48,
+        color: scheme.onSurfaceVariant.withValues(alpha: 0.9),
       ),
     );
   }

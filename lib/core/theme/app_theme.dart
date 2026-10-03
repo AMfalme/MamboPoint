@@ -24,7 +24,7 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
-      scaffoldBackgroundColor: const Color(0xFFF7F8FA),
+      scaffoldBackgroundColor: const Color(0xFFF6F7F9),
       visualDensity: VisualDensity.standard,
 
       appBarTheme: AppBarTheme(
@@ -45,8 +45,9 @@ class AppTheme {
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: scheme.outlineVariant),
+          // Hairline-style POS surface: crisp on desktop, calm on mobile.
+          borderRadius: BorderRadius.circular(10),
+          side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.7)),
         ),
       ),
 
@@ -100,7 +101,7 @@ class AppTheme {
       ),
 
       dividerTheme: DividerThemeData(
-        color: scheme.outlineVariant,
+        color: scheme.outlineVariant.withValues(alpha: 0.6),
         thickness: 1,
         space: 1,
       ),
@@ -122,24 +123,31 @@ class AppTheme {
       chipTheme: ChipThemeData(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
-          side: BorderSide(color: scheme.outlineVariant),
+          side: BorderSide(
+            color: scheme.outlineVariant.withValues(alpha: 0.7),
+          ),
         ),
         labelStyle: const TextStyle(fontSize: 13),
       ),
 
-      // Tables are a first-class surface in this module (spec section 10).
+      // Compact, scannable POS table: tight rows and subtle separators.
       dataTableTheme: DataTableThemeData(
         headingRowColor: WidgetStatePropertyAll<Color>(
-          scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+          scheme.surfaceContainerHighest.withValues(alpha: 0.45),
         ),
+        dataRowMinHeight: 56,
+        dataRowMaxHeight: 64,
+        headingRowHeight: 40,
         headingTextStyle: TextStyle(
           fontWeight: FontWeight.w600,
-          fontSize: 13,
+          fontSize: 12,
+          letterSpacing: 0.2,
           color: scheme.onSurfaceVariant,
         ),
-        dataTextStyle: TextStyle(fontSize: 14, color: scheme.onSurface),
+        dataTextStyle: TextStyle(fontSize: 13.5, color: scheme.onSurface),
         dividerThickness: 1,
-        horizontalMargin: AppSpacing.lg,
+        horizontalMargin: AppSpacing.md,
+        columnSpacing: 20,
       ),
     );
   }

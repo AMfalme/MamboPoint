@@ -10,8 +10,9 @@ import 'product_thumbnail.dart';
 /// Professional product table for tablet and desktop widths
 /// (spec section 10).
 ///
-/// The page decides whether to show this or [ProductCard] based on available
-/// width; this widget assumes it has room for its columns.
+/// Compact POS list: one subtle card, tight rows, strong product identity on
+/// the left and scannable price/stock/status columns. Row separation comes
+/// from hairline dividers, not heavy cell borders.
 class ProductTable extends StatelessWidget {
   const ProductTable({
     super.key,
@@ -44,19 +45,24 @@ class ProductTable extends StatelessWidget {
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      child: DataTable(
-        showCheckboxColumn: false,
-        columnSpacing: 24,
-        columns: <DataColumn>[
-          const DataColumn(label: Text('Product')),
-          const DataColumn(label: Text('SKU')),
-          const DataColumn(label: Text('Category')),
-          const DataColumn(label: Text('Selling price'), numeric: true),
-          const DataColumn(label: Text('Stock'), numeric: true),
-          const DataColumn(label: Text('Status')),
-          const DataColumn(label: Text('Updated')),
-          if (_showActions) const DataColumn(label: Text('Actions')),
-        ],
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minWidth: 880),
+        child: DataTable(
+          showCheckboxColumn: false,
+          columnSpacing: 20,
+          headingRowHeight: 40,
+          dataRowMinHeight: 60,
+          dataRowMaxHeight: 68,
+          columns: <DataColumn>[
+            const DataColumn(label: Text('Product')),
+            const DataColumn(label: Text('SKU / Barcode')),
+            const DataColumn(label: Text('Category')),
+            const DataColumn(label: Text('Price'), numeric: true),
+            const DataColumn(label: Text('Stock'), numeric: true),
+            const DataColumn(label: Text('Status')),
+            const DataColumn(label: Text('Updated')),
+            if (_showActions) const DataColumn(label: Text('')),
+          ],
         rows: <DataRow>[
           for (final Product product in products)
             DataRow(
@@ -65,27 +71,37 @@ class ProductTable extends StatelessWidget {
                   : (bool? _) => onView!(product),
               cells: <DataCell>[
                 DataCell(_ProductCell(product: product)),
+                DataCell(_SkuCell(product: product)),
                 DataCell(
-                  Text(
-                    product.sku,
-                    style: const TextStyle(
-                      fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
+                  Text(product.categoryLabel, overflow: TextOverflow.ellipsis),
+                ),
+                DataCell(
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      CurrencyFormatter.format(product.sellingPrice),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontFeatures: <FontFeature>[
+                          FontFeature.tabularFigures(),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-                DataCell(Text(product.categoryLabel)),
-                DataCell(
-                  Text(
-                    CurrencyFormatter.format(product.sellingPrice),
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                ),
                 DataCell(_StockCell(product: product)),
-                DataCell(ProductActiveBadge(isActive: product.isActive)),
+                DataCell(_StatusCell(product: product)),
                 DataCell(
                   Tooltip(
                     message: DateFormatter.dateTime(product.updatedAt),
-                    child: Text(DateFormatter.relative(product.updatedAt)),
+                    child: Text(
+                      DateFormatter.relative(product.updatedAt),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
                   ),
                 ),
                 if (_showActions)
@@ -102,13 +118,14 @@ class ProductTable extends StatelessWidget {
               ],
             ),
         ],
+        ),
       ),
     );
   }
 }
 
-/// Product name with its thumbnail, plus the barcode as a secondary line so
-/// the two identifiers from spec section 10 are both visible.
+/// Product name with its thumbnail, plus the category as a muted secondary
+/// line. SKU/barcode get their own column so this cell stays scannable.
 class _ProductCell extends StatelessWidget {
   const _ProductCell({required this.product});
 
@@ -119,11 +136,11 @@ class _ProductCell extends StatelessWidget {
     final ThemeData theme = Theme.of(context);
 
     return SizedBox(
-      width: 260,
+      width: 230,
       child: Row(
         children: <Widget>[
-          ProductThumbnail(product: product),
-          const SizedBox(width: AppSpacing.md),
+          ProductThumbnail(product: product, size: 36, borderRadius: 7),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -133,22 +150,65 @@ class _ProductCell extends StatelessWidget {
                   product.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                if (product.hasBarcode)
-                  Text(
-                    product.barcode!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    height: 1.25,
                   ),
+                ),
+                Text(
+                  product.categoryLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontSize: 12,
+                    height: 1.25,
+                  ),
+                ),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+/// SKU primary, barcode muted underneath. Keeps identifier hierarchy
+/// SKU > barcode without widening the product column.
+class _SkuCell extends StatelessWidget {
+  const _SkuCell({required this.product});
+
+  final Product product;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Text(
+          product.sku,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.bodySmall?.copyWith(
+            fontWeight: FontWeight.w600,
+            fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+            height: 1.25,
+          ),
+        ),
+        Text(
+          product.hasBarcode ? product.barcode! : '—',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            fontSize: 12,
+            height: 1.25,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -164,18 +224,37 @@ class _StockCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         Text(
           '${CurrencyFormatter.formatQuantity(product.stockQuantity)} '
           '${product.unit}',
-          style: const TextStyle(fontWeight: FontWeight.w500),
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
+            height: 1.25,
+          ),
         ),
-        const SizedBox(width: AppSpacing.sm),
+        const SizedBox(height: 3),
         StockStatusBadge(status: product.stockStatus, dense: true),
       ],
     );
+  }
+}
+
+/// Single status column: active/inactive first, then the stock signal.
+/// Two dots would be noisy, so inactive rows keep the neutral badge and the
+/// stock signal stays on the quantity column.
+class _StatusCell extends StatelessWidget {
+  const _StatusCell({required this.product});
+
+  final Product product;
+
+  @override
+  Widget build(BuildContext context) {
+    return ProductActiveBadge(isActive: product.isActive, dense: true);
   }
 }
 
@@ -221,7 +300,9 @@ class _RowActions extends StatelessWidget {
 
     return PopupMenuButton<_RowAction>(
       tooltip: 'Product actions',
-      icon: const Icon(Icons.more_vert),
+      icon: const Icon(Icons.more_vert, size: 20),
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
       onSelected: (_RowAction action) {
         switch (action) {
           case _RowAction.view:

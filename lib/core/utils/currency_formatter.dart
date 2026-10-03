@@ -19,8 +19,8 @@ class CurrencyFormatter {
   /// Display prefix.
   static const String symbol = 'KSh';
 
-  static final NumberFormat _money = NumberFormat('#,##0.00', 'en_KE');
-  static final NumberFormat _whole = NumberFormat('#,##0', 'en_KE');
+  static final NumberFormat _money = NumberFormat('#,##0.00', 'en');
+  static final NumberFormat _whole = NumberFormat('#,##0', 'en');
 
   /// `KSh 1,250.00` — the standard money format.
   static String format(num? amount) => '$symbol ${_money.format(amount ?? 0)}';

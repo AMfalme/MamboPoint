@@ -13,6 +13,10 @@ import '../../providers/product_list_provider.dart';
 ///
 /// Purely a controller of [ProductListNotifier] — it holds no filter state of
 /// its own, so the list and the controls can never disagree.
+///
+/// Compact POS toolbar: a dominant search field with a wrapping row of small
+/// dropdown controls underneath. No large surrounding card — the page owns
+/// spacing, this widget only owns the controls.
 class ProductFilters extends ConsumerWidget {
   const ProductFilters({super.key, required this.searchController});
 
@@ -27,23 +31,29 @@ class ProductFilters extends ConsumerWidget {
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        SearchInput(controller: searchController, onChanged: notifier.setQuery),
-        const SizedBox(height: AppSpacing.md),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560),
+          child: SearchInput(
+            controller: searchController,
+            onChanged: notifier.setQuery,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
         LayoutBuilder(
           builder: (BuildContext context, BoxConstraints constraints) {
-            // Below the breakpoint the controls stack, so the filter row stays
-            // usable on a phone (spec section 30).
-            final bool stacked =
+            // Wide toolbar: search-aligned filter row. Narrow: horizontally
+            // scrollable filter chips-row so nothing stacks into a tall wall.
+            final bool compact =
                 constraints.maxWidth < AppBreakpoints.filterRowMinWidth;
-            final double controlWidth = stacked ? double.infinity : 210;
 
             final List<Widget> controls = <Widget>[
               _CategoryDropdown(
                 categories: categories.value ?? const <Category>[],
                 categoryId: filter.categoryId,
                 onChanged: notifier.setCategory,
-                width: controlWidth,
+                width: compact ? 160 : 168,
               ),
               _EnumDropdown<ProductStatusFilter>(
                 value: filter.status,
@@ -51,7 +61,7 @@ class ProductFilters extends ConsumerWidget {
                 labelOf: (ProductStatusFilter value) => value.label,
                 label: 'Status',
                 onChanged: notifier.setStatus,
-                width: controlWidth,
+                width: compact ? 132 : 140,
               ),
               _EnumDropdown<ProductStockFilter>(
                 value: filter.stock,
@@ -59,7 +69,7 @@ class ProductFilters extends ConsumerWidget {
                 labelOf: (ProductStockFilter value) => value.label,
                 label: 'Stock',
                 onChanged: notifier.setStock,
-                width: controlWidth,
+                width: compact ? 132 : 140,
               ),
               _EnumDropdown<ProductSortOrder>(
                 value: filter.sort,
@@ -67,26 +77,28 @@ class ProductFilters extends ConsumerWidget {
                 labelOf: (ProductSortOrder value) => value.label,
                 label: 'Sort',
                 onChanged: notifier.setSort,
-                width: controlWidth,
+                width: compact ? 176 : 200,
               ),
             ];
 
-            if (stacked) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  for (final Widget control in controls)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                      child: control,
-                    ),
-                ],
+            if (compact) {
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: <Widget>[
+                    for (int i = 0; i < controls.length; i++) ...<Widget>[
+                      controls[i],
+                      if (i != controls.length - 1)
+                        const SizedBox(width: AppSpacing.sm),
+                    ],
+                  ],
+                ),
               );
             }
 
             return Wrap(
-              spacing: AppSpacing.md,
-              runSpacing: AppSpacing.md,
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: controls,
             );
@@ -96,11 +108,23 @@ class ProductFilters extends ConsumerWidget {
           Align(
             alignment: Alignment.centerLeft,
             child: TextButton.icon(
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: AppSpacing.xs,
+                ),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              // Clears refinements only and keeps the chosen sort order, via
+              // ProductFilter.cleared(). Search text is separate state owned
+              // by the page and is cleared from its own control/empty state.
               onPressed: notifier.clearFilters,
-              icon: const Icon(Icons.filter_alt_off_outlined, size: 18),
+              icon: const Icon(Icons.filter_alt_off_outlined, size: 16),
               label: Text(
                 'Clear ${filter.activeFilterCount} '
                 'filter${filter.activeFilterCount == 1 ? '' : 's'}',
+                style: const TextStyle(fontSize: 12),
               ),
             ),
           ),
@@ -129,9 +153,27 @@ class _FilterShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SizedBox(
     width: width,
+    // Compact height keeps the toolbar scannable; label is shrunk so the
+    // value text dominates.
+    height: 44,
     child: InputDecorator(
-      decoration: InputDecoration(labelText: label),
-      child: child,
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: Theme.of(
+          context,
+        ).textTheme.labelSmall?.copyWith(fontSize: 11),
+        floatingLabelBehavior: FloatingLabelBehavior.always,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.xs,
+        ),
+      ),
+      child: DefaultTextStyle.merge(
+        style: Theme.of(
+          context,
+        ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w500),
+        child: child,
+      ),
     ),
   );
 }

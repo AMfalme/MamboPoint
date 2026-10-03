@@ -59,40 +59,34 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
     final bool canManage = ref.watch(canManageProductsProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Products'),
-        actions: <Widget>[
-          IconButton(
-            tooltip: 'Refresh',
-            onPressed: () => ref.read(productListProvider.notifier).refresh(),
-            icon: const Icon(Icons.refresh),
-          ),
-          const SizedBox(width: AppSpacing.xs),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: () => ref.read(productListProvider.notifier).refresh(),
-        child: ListView(
-          padding: AppSpacing.pagePadding,
-          children: <Widget>[
-            Card(
-              child: Padding(
-                padding: AppSpacing.cardPadding,
-                child: ProductFilters(searchController: _searchController),
-              ),
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: () => ref.read(productListProvider.notifier).refresh(),
+          child: ListView(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.md,
             ),
-            const SizedBox(height: AppSpacing.lg),
-            _buildContent(context, listState, canManage),
-          ],
+            children: <Widget>[
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1120),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      _PageHeader(onAddProduct: widget.onAddProduct),
+                      const SizedBox(height: AppSpacing.md),
+                      ProductFilters(searchController: _searchController),
+                      const SizedBox(height: AppSpacing.md),
+                      _buildContent(context, listState, canManage),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-      floatingActionButton: canManage && widget.onAddProduct != null
-          ? FloatingActionButton.extended(
-              onPressed: widget.onAddProduct,
-              icon: const Icon(Icons.add),
-              label: const Text('Add Product'),
-            )
-          : null,
     );
   }
 
@@ -185,11 +179,12 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
           isSearch: state.filter.hasQuery,
           isReloading: state.isReloading,
         ),
-        const SizedBox(height: AppSpacing.md),
+        const SizedBox(height: AppSpacing.sm),
         LayoutBuilder(
           builder: (BuildContext context, BoxConstraints constraints) {
             if (constraints.maxWidth >= AppBreakpoints.tableMinWidth) {
               return Card(
+                clipBehavior: Clip.antiAlias,
                 child: ProductTable(
                   products: products,
                   canManage: canManage,
@@ -202,29 +197,29 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
 
             return Column(
               children: <Widget>[
-                for (final Product product in products)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                    child: ProductCard(
-                      product: product,
-                      canManage: canManage,
-                      onView: widget.onViewProduct == null
-                          ? null
-                          : () => widget.onViewProduct!(product),
-                      onEdit: widget.onEditProduct == null
-                          ? null
-                          : () => widget.onEditProduct!(product),
-                      onToggleActive: widget.onToggleActive == null
-                          ? null
-                          : () => widget.onToggleActive!(product),
-                    ),
+                for (int i = 0; i < products.length; i++) ...<Widget>[
+                  ProductCard(
+                    product: products[i],
+                    canManage: canManage,
+                    onView: widget.onViewProduct == null
+                        ? null
+                        : () => widget.onViewProduct!(products[i]),
+                    onEdit: widget.onEditProduct == null
+                        ? null
+                        : () => widget.onEditProduct!(products[i]),
+                    onToggleActive: widget.onToggleActive == null
+                        ? null
+                        : () => widget.onToggleActive!(products[i]),
                   ),
+                  if (i != products.length - 1)
+                    const SizedBox(height: AppSpacing.sm),
+                ],
               ],
             );
           },
         ),
         if (state.canLoadMore) ...<Widget>[
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.md),
           Center(
             child: OutlinedButton.icon(
               onPressed: state.isLoadingMore
@@ -236,25 +231,25 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                       height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Icon(Icons.expand_more),
+                  : const Icon(Icons.expand_more, size: 18),
               label: Text(state.isLoadingMore ? 'Loading...' : 'Load more'),
             ),
           ),
         ],
         if (state.filter.hasQuery)
           Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.lg),
+            padding: const EdgeInsets.only(top: AppSpacing.md),
             child: Text(
               'Showing the closest matches. Refine your search to narrow the '
               'results.',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
+                fontSize: 12,
               ),
             ),
           ),
-        // Bottom breathing room so the FAB never covers the last row.
-        const SizedBox(height: AppSpacing.xxl + AppSpacing.xl),
+        const SizedBox(height: AppSpacing.lg),
       ],
     );
   }
@@ -269,6 +264,88 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
   }
 }
 
+/// Compact POS page header: strong title + muted subtitle on the left,
+/// prominent but not oversized Add action on the right. Stacks on narrow
+/// widths so Add stays reachable without consuming vertical space.
+class _PageHeader extends StatelessWidget {
+  const _PageHeader({required this.onAddProduct});
+
+  final VoidCallback? onAddProduct;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final bool narrow = constraints.maxWidth < 560;
+
+        final Widget title = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Text(
+              'Products',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.2,
+                height: 1.2,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'Manage your inventory and product information',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                height: 1.35,
+              ),
+            ),
+          ],
+        );
+
+        if (onAddProduct == null) return title;
+
+        final Widget addButton = narrow
+            ? SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: onAddProduct,
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Add Product'),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    textStyle: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              )
+            : FilledButton.icon(
+                onPressed: onAddProduct,
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Add Product'),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.lg,
+                    vertical: 10,
+                  ),
+                  textStyle: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              );
+
+        if (narrow) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[title, const SizedBox(height: AppSpacing.sm), addButton],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: <Widget>[Expanded(child: title), addButton],
+        );
+      },
+    );
+  }
+}
+
 /// Consistent card surface for the loading, error and empty states.
 class _Surface extends StatelessWidget {
   const _Surface({required this.child});
@@ -277,11 +354,21 @@ class _Surface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Card(
-    child: Padding(padding: AppSpacing.cardPadding, child: child),
+    clipBehavior: Clip.antiAlias,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.md,
+      ),
+      child: child,
+    ),
   );
 }
 
 /// Result count plus a subtle indicator while a new filter is loading.
+///
+/// Reads `5 products` / `3 matches` with a muted `· Showing all` suffix so the
+/// count feels like inventory software rather than a demo label.
 class _ResultSummary extends StatelessWidget {
   const _ResultSummary({
     required this.count,
@@ -302,16 +389,25 @@ class _ResultSummary extends StatelessWidget {
       children: <Widget>[
         Text(
           '$count $noun${count == 1 ? '' : 'es'}',
-          style: theme.textTheme.titleSmall?.copyWith(
+          style: theme.textTheme.bodyMedium?.copyWith(
             fontWeight: FontWeight.w600,
+            color: theme.colorScheme.onSurface,
+            height: 1.2,
+          ),
+        ),
+        Text(
+          isSearch ? ' · filtered results' : ' · showing all',
+          style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
+            fontSize: 12,
+            height: 1.2,
           ),
         ),
         if (isReloading) ...<Widget>[
-          const SizedBox(width: AppSpacing.md),
+          const SizedBox(width: AppSpacing.sm),
           const SizedBox(
-            width: 14,
-            height: 14,
+            width: 12,
+            height: 12,
             child: CircularProgressIndicator(strokeWidth: 2),
           ),
         ],

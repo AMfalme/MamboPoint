@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 import 'core/preview/preview_data.dart';
 import 'core/preview/preview_products_page.dart';
@@ -14,6 +15,10 @@ import 'models/user_role.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Date symbols for non-en_US locales must be initialized before any
+  // DateFormat use, otherwise intl throws LocaleDataException. The local
+  // build bundles every locale, so one call covers the whole app.
+  await initializeDateFormatting('en', null);
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );

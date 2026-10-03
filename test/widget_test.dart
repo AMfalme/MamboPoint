@@ -7,6 +7,7 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:mambopoint/core/utils/error_mapper.dart';
 import 'package:mambopoint/features/auth/providers/session_providers.dart';
 import 'package:mambopoint/features/products/data/product_reader.dart';
@@ -32,6 +33,12 @@ class _NoSessionReader implements ProductReader {
 }
 
 void main() {
+  setUpAll(() async {
+    // Mirrors main(): non-en_US date symbols must be initialized before any
+    // DateFormat use, otherwise intl throws LocaleDataException.
+    await initializeDateFormatting('en', null);
+  });
+
   testWidgets('App boots into the Product Management shell', (
     WidgetTester tester,
   ) async {
